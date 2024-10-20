@@ -9,3 +9,4 @@ feedparser==6.0.11
 googlenewsdecoder==0.1.6
 openai==1.52.0
 pydantic-settings==2.6.0
+aiohttp==3.10.10

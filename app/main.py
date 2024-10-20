@@ -2,10 +2,11 @@ import logging
 from fastapi import FastAPI, APIRouter, Query, BackgroundTasks
 from typing import List
 import uuid
+from datetime import datetime
 from app.services.news_crawling_service import NewsCrawlingService
 from app.services.news_summary_service import NewsSummaryService
 from app.models.enums import PressName
-from app.models.dto import SummaryRequestDTO, SummaryResultDTO
+from app.models.dto import SummaryRequestDTO, ApiResponse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,7 +28,7 @@ news_crawling_service = NewsCrawlingService()
 news_summary_service = NewsSummaryService()
 
 
-@news_router.get("/summarize", response_model=SummaryResultDTO)
+@news_router.get("/summarize", response_model=ApiResponse)
 async def summarize(
     background_tasks: BackgroundTasks,
     keyword: str = Query(...),
@@ -52,38 +53,76 @@ async def summarize(
     request_dto = SummaryRequestDTO(keyword=keyword, press=press, period=period)
     background_tasks.add_task(process_summary_task, task_id, request_dto)
 
-    return SummaryResultDTO(task_id=task_id, status="pending")
+    return ApiResponse(
+        isSuccess=True, code="COMMON200", message="성공", result={"task_id": task_id}
+    )
 
 
-@news_router.get("/status/{task_id}")
+@news_router.get("/status/{task_id}", response_model=ApiResponse)
 async def get_status(task_id: str):
     task = tasks.get(task_id)
     if not task:
-        return {"error": "Task not found"}
-    return {"status": task["status"]}
+        return ApiResponse(isSuccess=False, code="COMMON404", message="Task not found")
+    return ApiResponse(
+        isSuccess=True,
+        code="COMMON200",
+        message="성공",
+        result={"status": task["status"]},
+    )
 
 
-@news_router.get("/result/{task_id}")
+@news_router.get("/result/{task_id}", response_model=ApiResponse)
 async def get_result(task_id: str):
     task = tasks.get(task_id)
     if not task:
-        return {"error": "Task not found"}
+        return ApiResponse(isSuccess=False, code="COMMON404", message="Task not found")
     if task["status"] != "completed":
-        return {"status": task["status"]}
-    return {"result": task["result"]}
+        return ApiResponse(
+            isSuccess=False,
+            code="COMMON404",
+            message="Task not completed",
+            result={"status": task["status"]},
+        )
+    return ApiResponse(
+        isSuccess=True,
+        code="COMMON200",
+        message="성공",
+        result={"status": task["result"]},
+    )
 
 
 async def process_summary_task(task_id: str, request: SummaryRequestDTO):
-    tasks[task_id]["status"] = "processing"
-
     try:
+        tasks[task_id]["status"] = "crawling"
         news_articles = await news_crawling_service.crawl_news(request)
-        summary_result = news_summary_service.summarize_news(
+
+        tasks[task_id]["status"] = "summarizing"
+        summary_items = await news_summary_service.summarize_news(
             news_articles, request.keyword
         )
 
+        # SummaryItem 리스트를 문자열로 변환
+        summary_text = "\n".join(
+            [f"{item.title}: {item.content}" for item in summary_items]
+        )
+
+        result = {
+            "summaries": summary_text,
+            "sources": [
+                {
+                    "date": datetime.combine(
+                        article.published_date, article.published_time
+                    ).isoformat(),
+                    "title": article.title,
+                    "content": article.content,
+                    "url": article.url,
+                }
+                for article in news_articles
+            ],
+        }
+
         tasks[task_id]["status"] = "completed"
-        tasks[task_id]["result"] = summary_result
+        tasks[task_id]["result"] = result
     except Exception as e:
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["result"] = str(e)
