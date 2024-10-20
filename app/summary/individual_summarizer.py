@@ -2,7 +2,7 @@ import json
 from typing import List
 from app.config.env import settings
 from app.summary.accumulated_summarizer import AccumulatedSummarizer
-from app.models.dto import NewsArticleDTO
+from app.models.dtos import NewsArticleDTO
 from app.core.exceptions import SummaryError
 import logging
 import asyncio

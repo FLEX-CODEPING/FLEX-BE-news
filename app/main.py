@@ -6,7 +6,7 @@ from datetime import datetime
 from app.services.news_crawling_service import NewsCrawlingService
 from app.services.news_summary_service import NewsSummaryService
 from app.models.enums import PressName
-from app.models.dto import SummaryRequestDTO, ApiResponse
+from app.models.dtos import SummaryRequestDTO, ApiResponseDTO
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +28,7 @@ news_crawling_service = NewsCrawlingService()
 news_summary_service = NewsSummaryService()
 
 
-@news_router.get("/summarize", response_model=ApiResponse)
+@news_router.get("/summarize", response_model=ApiResponseDTO)
 async def summarize(
     background_tasks: BackgroundTasks,
     keyword: str = Query(...),
@@ -53,17 +53,19 @@ async def summarize(
     request_dto = SummaryRequestDTO(keyword=keyword, press=press, period=period)
     background_tasks.add_task(process_summary_task, task_id, request_dto)
 
-    return ApiResponse(
+    return ApiResponseDTO(
         isSuccess=True, code="COMMON200", message="성공", result={"task_id": task_id}
     )
 
 
-@news_router.get("/status/{task_id}", response_model=ApiResponse)
+@news_router.get("/status/{task_id}", response_model=ApiResponseDTO)
 async def get_status(task_id: str):
     task = tasks.get(task_id)
     if not task:
-        return ApiResponse(isSuccess=False, code="COMMON404", message="Task not found")
-    return ApiResponse(
+        return ApiResponseDTO(
+            isSuccess=False, code="COMMON404", message="Task not found"
+        )
+    return ApiResponseDTO(
         isSuccess=True,
         code="COMMON200",
         message="성공",
@@ -71,19 +73,21 @@ async def get_status(task_id: str):
     )
 
 
-@news_router.get("/result/{task_id}", response_model=ApiResponse)
+@news_router.get("/result/{task_id}", response_model=ApiResponseDTO)
 async def get_result(task_id: str):
     task = tasks.get(task_id)
     if not task:
-        return ApiResponse(isSuccess=False, code="COMMON404", message="Task not found")
+        return ApiResponseDTO(
+            isSuccess=False, code="COMMON404", message="Task not found"
+        )
     if task["status"] != "completed":
-        return ApiResponse(
+        return ApiResponseDTO(
             isSuccess=False,
             code="COMMON404",
             message="Task not completed",
             result={"status": task["status"]},
         )
-    return ApiResponse(
+    return ApiResponseDTO(
         isSuccess=True,
         code="COMMON200",
         message="성공",
@@ -101,7 +105,7 @@ async def process_summary_task(task_id: str, request: SummaryRequestDTO):
             news_articles, request.keyword
         )
 
-        # SummaryItem 리스트를 문자열로 변환
+        # SummaryItemDTO 리스트를 문자열로 변환
         summary_text = "\n".join(
             [f"{item.title}: {item.content}" for item in summary_items]
         )

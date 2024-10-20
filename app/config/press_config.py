@@ -1,4 +1,4 @@
-from app.models.dto import PressDTO
+from app.models.dtos import PressDTO
 
 PRESS_LIST = [
     PressDTO(code="hk", name="한국경제", domain="hankyung.com"),

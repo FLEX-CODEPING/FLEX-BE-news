@@ -1,5 +1,5 @@
 from typing import List
-from app.models.dto import PressDTO, NewsArticleDTO, SummaryRequestDTO
+from app.models.dtos import PressDTO, NewsArticleDTO, SummaryRequestDTO
 from app.crawler.news_crawler import NewsCrawler
 from app.config.press_config import PRESS_CODE_MAP
 

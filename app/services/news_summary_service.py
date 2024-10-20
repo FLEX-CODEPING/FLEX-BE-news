@@ -1,5 +1,5 @@
 from typing import List
-from app.models.dto import NewsArticleDTO, SummaryItem
+from app.models.dtos import NewsArticleDTO, SummaryItemDTO
 from app.summary.individual_summarizer import IndividualSummarizer
 from app.core.exceptions import SummaryError
 import logging
@@ -14,7 +14,7 @@ class NewsSummaryService:
 
     async def summarize_news(
         self, news_articles: List[NewsArticleDTO], keyword: str
-    ) -> List[SummaryItem]:
+    ) -> List[SummaryItemDTO]:
         try:
             accumulated_summary = await self.individual_summarizer.summarize(
                 news_articles, keyword
@@ -31,7 +31,7 @@ class NewsSummaryService:
                 },
             )
 
-    def _parse_summary(self, accumulated_summary: str) -> List[SummaryItem]:
+    def _parse_summary(self, accumulated_summary: str) -> List[SummaryItemDTO]:
         summaries = []
         # 정규 표현식을 사용하여 번호가 매겨진 항목들을 분리
         items = re.split(r"(\d+\.)", accumulated_summary)[1:]  # 첫 번째 빈 문자열 제거
@@ -43,13 +43,13 @@ class NewsSummaryService:
                 if ":" in content:
                     title, description = content.split(":", 1)
                     summaries.append(
-                        SummaryItem(
+                        SummaryItemDTO(
                             title=f"{number} {title.strip()}",
                             content=description.strip(),
                         )
                     )
                 else:
                     # ':' 구분자가 없는 경우 전체를 content로 처리
-                    summaries.append(SummaryItem(title=number, content=content))
+                    summaries.append(SummaryItemDTO(title=number, content=content))
 
         return summaries

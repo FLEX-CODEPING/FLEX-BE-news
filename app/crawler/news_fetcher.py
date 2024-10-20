@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 import feedparser
 from typing import List, Dict
 from datetime import datetime
-from app.models.dto import PressDTO
+from app.models.dtos import PressDTO
 from app.crawler.url_decoder import URLDecoder
 from app.crawler.content_extractor import ContentExtractor
 from app.core.exceptions import CrawlingError

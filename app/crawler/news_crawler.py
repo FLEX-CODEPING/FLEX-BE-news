@@ -3,7 +3,7 @@ import pandas as pd
 from typing import List
 import os
 from app.crawler.news_fetcher import NewsFetcher
-from app.models.dto import PressDTO, NewsArticleDTO
+from app.models.dtos import PressDTO, NewsArticleDTO
 from app.core.exceptions import CrawlingError
 import logging
 

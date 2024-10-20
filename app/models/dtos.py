@@ -26,17 +26,17 @@ class SummaryRequestDTO(BaseModel):
     period: int
 
 
-class SummaryItem(BaseModel):
+class SummaryItemDTO(BaseModel):
     title: str
     content: str
 
 
-class SummaryResult(BaseModel):
-    summaries: List[SummaryItem]
+class SummaryResultDTO(BaseModel):
+    summaries: List[SummaryItemDTO]
 
 
-class ApiResponse(BaseModel):
+class ApiResponseDTO(BaseModel):
     isSuccess: bool = True
     code: str = "COMMON200"
     message: str = "성공"
-    result: Optional[SummaryResult] = None
+    result: Optional[SummaryResultDTO] = None
