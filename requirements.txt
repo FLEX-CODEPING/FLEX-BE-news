@@ -1,0 +1,11 @@
+fastapi[standard]
+urllib3==1.26.5
+pandas==2.2.3
+huggingface-hub==0.25.2
+transformers==4.45.2
+beautifulsoup4==4.12.3
+datetime
+feedparser==6.0.11
+googlenewsdecoder==0.1.6
+openai==1.52.0
+pydantic-settings==2.6.0

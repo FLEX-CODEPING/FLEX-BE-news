@@ -1,0 +1,29 @@
+{
+  "한국경제": {
+    "domain": "www.hankyung.com",
+    "selectors": "#articletxt"
+  },
+  "서울경제": {
+    "domain": [
+      "m.sedaily.com",
+      "www.sedaily.com"
+    ],
+    "selectors": {
+      "m.sedaily.com": {
+        "NewsView": "div.article",
+        "NewsViewAmp": "div.view_con.first_view_con"
+      },
+      "www.sedaily.com": "div.article_view"
+    }
+  },
+  "매일경제": {
+    "domain": [
+      "www.mk.co.kr",
+      "stock.mk.co.kr"
+    ],
+    "selectors": {
+      "mk.co.kr": "div.news_cnt_detail_wrap",
+      "stock.mk.co.kr": "div.news_detail_wrap"
+    }
+  }
+}
