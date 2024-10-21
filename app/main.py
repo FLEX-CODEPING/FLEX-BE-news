@@ -75,8 +75,8 @@ async def summarize(
                     NewsArticleSourceDTO(
                         date=date_combined,
                         title=row.title,
-                        # content를 50자로 제한
-                        content=row.content[:50] + "..."
+                        # content를 100자로 제한
+                        content=row.content[:100] + "..."
                         if len(row.content) > 50
                         else row.content,
                         url=row.url,
