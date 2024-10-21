@@ -34,9 +34,20 @@ class NewsCrawler:
                 return
 
             # DataFrame의 각 행을 NewsArticleDTO로 변환
-            article_dtos = [
-                NewsArticleDTO(**row) for row in df.to_dict(orient="records")
-            ]
+            article_dtos = []
+            # NewsArticleDTO(**row) for row in df.to_dict(orient="records")
+            for row in df.to_dict(orient="records"):
+                try:
+                    # published_time 필드를 datetime 형식으로 변환
+                    if "published_time" in row:
+                        row["published_time"] = datetime.strptime(
+                            row["published_time"], "%H:%M"
+                        )
+                    article_dtos.append(NewsArticleDTO(**row))
+                except Exception as e:
+                    logger.error(
+                        f"행을 NewsArticleDTO로 변환 중 오류: {str(e)}", exc_info=True
+                    )
 
             # 파일 이름 생성
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")

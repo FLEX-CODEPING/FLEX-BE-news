@@ -1,12 +1,16 @@
 import logging
-from fastapi import FastAPI, APIRouter, Query, BackgroundTasks
+from fastapi import FastAPI, APIRouter, Query
 from typing import List
-import uuid
 from datetime import datetime
 from app.services.news_crawling_service import NewsCrawlingService
 from app.services.news_summary_service import NewsSummaryService
 from app.models.enums import PressName
-from app.models.dtos import SummaryRequestDTO, ApiResponseDTO
+from app.models.dtos import (
+    SummaryRequestDTO,
+    ApiResponseDTO,
+    NewsArticleSourceDTO,
+    SummaryItemDTO,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +34,6 @@ news_summary_service = NewsSummaryService()
 
 @news_router.get("/summarize", response_model=ApiResponseDTO)
 async def summarize(
-    background_tasks: BackgroundTasks,
     keyword: str = Query(...),
     press: List[PressName] = Query(
         default=["hk"],
@@ -47,90 +50,58 @@ async def summarize(
 
     결과로 작업 ID가 반환되며, 이를 통해 작업 상태와 결과를 조회할 수 있습니다.
     """
-    task_id = str(uuid.uuid4())
-    tasks[task_id] = {"status": "pending", "result": None}
 
-    request_dto = SummaryRequestDTO(keyword=keyword, press=press, period=period)
-    background_tasks.add_task(process_summary_task, task_id, request_dto)
-
-    return ApiResponseDTO(
-        isSuccess=True, code="COMMON200", message="성공", result={"task_id": task_id}
-    )
-
-
-@news_router.get("/status/{task_id}", response_model=ApiResponseDTO)
-async def get_status(task_id: str):
-    task = tasks.get(task_id)
-    if not task:
-        return ApiResponseDTO(
-            isSuccess=False, code="COMMON404", message="Task not found"
-        )
-    return ApiResponseDTO(
-        isSuccess=True,
-        code="COMMON200",
-        message="성공",
-        result={"status": task["status"]},
-    )
-
-
-@news_router.get("/result/{task_id}", response_model=ApiResponseDTO)
-async def get_result(task_id: str):
-    task = tasks.get(task_id)
-    if not task:
-        return ApiResponseDTO(
-            isSuccess=False, code="COMMON404", message="Task not found"
-        )
-    if task["status"] != "completed":
-        return ApiResponseDTO(
-            isSuccess=False,
-            code="COMMON404",
-            message="Task not completed",
-            result={"status": task["status"]},
-        )
-    return ApiResponseDTO(
-        isSuccess=True,
-        code="COMMON200",
-        message="성공",
-        result={"status": task["result"]},
-    )
-
-
-async def process_summary_task(task_id: str, request: SummaryRequestDTO):
     try:
-        tasks[task_id]["status"] = "crawling"
-        news_articles = await news_crawling_service.crawl_news(request)
+        request_dto = SummaryRequestDTO(keyword=keyword, press=press, period=period)
 
-        tasks[task_id]["status"] = "summarizing"
+        news_articles = await news_crawling_service.crawl_news(request_dto)
         summary_items = await news_summary_service.summarize_news(
-            news_articles, request.keyword
+            news_articles, request_dto.keyword
         )
 
-        # SummaryItemDTO 리스트를 문자열로 변환
-        summary_text = "\n".join(
-            [f"{item.title}: {item.content}" for item in summary_items]
+        summary_text = [
+            SummaryItemDTO(title=item.title, content=item.content)
+            for item in summary_items
+        ]
+
+        articles_dto = []
+        for row in news_articles:
+            try:
+                # row의 published_time과 published_date를 합쳐 NewsArticleSourceDTO로 변환
+                date_combined = datetime.combine(
+                    row.published_date.date(), row.published_time.time()
+                )
+                articles_dto.append(
+                    NewsArticleSourceDTO(
+                        date=date_combined,
+                        title=row.title,
+                        # content를 50자로 제한
+                        content=row.content[:50] + "..."
+                        if len(row.content) > 50
+                        else row.content,
+                        url=row.url,
+                    )
+                )
+            except Exception as e:
+                logger.error(
+                    f"행을 NewsArticleSourceDTO로 변환 중 오류: {str(e)}", exc_info=True
+                )
+
+        logger.info(f"summaries: {summary_text}")
+        logger.info(f"articles_dto: {articles_dto}")
+
+        return ApiResponseDTO(
+            isSuccess=True,
+            code="COMMON200",
+            message="성공",
+            result={"summaries": summary_text, "sources": articles_dto},
         )
 
-        result = {
-            "summaries": summary_text,
-            "sources": [
-                {
-                    "date": datetime.combine(
-                        article.published_date, article.published_time
-                    ).isoformat(),
-                    "title": article.title,
-                    "content": article.content,
-                    "url": article.url,
-                }
-                for article in news_articles
-            ],
-        }
-
-        tasks[task_id]["status"] = "completed"
-        tasks[task_id]["result"] = result
     except Exception as e:
-        tasks[task_id]["status"] = "failed"
-        tasks[task_id]["result"] = str(e)
-        logging.error(f"Error occurred while processing task {task_id}: {str(e)}")
+        logging.error(f"Error occurred while processing task: {str(e)}")
+        return ApiResponseDTO(
+            isSuccess=False, code="COMMON500", message=f"처리 중 오류 발생: {str(e)}"
+        )
 
 
 app.include_router(news_router)

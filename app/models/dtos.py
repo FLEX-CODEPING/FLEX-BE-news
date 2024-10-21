@@ -20,6 +20,13 @@ class NewsArticleDTO(BaseModel):
     keywords: str
 
 
+class NewsArticleSourceDTO(BaseModel):
+    date: datetime
+    title: str
+    content: str
+    url: str
+
+
 class SummaryRequestDTO(BaseModel):
     keyword: str
     press: List[PressName]
@@ -31,12 +38,15 @@ class SummaryItemDTO(BaseModel):
     content: str
 
 
-class SummaryResultDTO(BaseModel):
-    summaries: List[SummaryItemDTO]
+class SummaryResponseDTO(BaseModel):
+    summaries: Optional[List[SummaryItemDTO]] = None
+    sources: Optional[List[NewsArticleSourceDTO]] = None
+    status: Optional[str] = None
+    task_id: Optional[str] = None
 
 
 class ApiResponseDTO(BaseModel):
     isSuccess: bool = True
     code: str = "COMMON200"
     message: str = "성공"
-    result: Optional[SummaryResultDTO] = None
+    result: Optional[SummaryResponseDTO] = None

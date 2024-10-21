@@ -17,9 +17,9 @@ class IndividualSummarizer:
         self.naver_client_secret = settings.naver_client_secret
         self.accumulated_summarizer = AccumulatedSummarizer()
 
-    def summarize(self, articles: List[NewsArticleDTO], keyword: str) -> str:
+    async def summarize(self, articles: List[NewsArticleDTO], keyword: str) -> str:
         try:
-            individual_summaries = self._generate_individual_summary(articles)
+            individual_summaries = await self._generate_individual_summary(articles)
             accumulated_summary = self.accumulated_summarizer.accumulated_summary(
                 keyword, individual_summaries
             )
