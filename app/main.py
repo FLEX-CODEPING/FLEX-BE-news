@@ -1,5 +1,6 @@
 import logging
-from fastapi import FastAPI, APIRouter, Query
+from fastapi import FastAPI, APIRouter, Query, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List
 from datetime import datetime
 from app.services.news_crawling_service import NewsCrawlingService
@@ -11,6 +12,7 @@ from app.models.dtos import (
     NewsArticleSourceDTO,
     SummaryItemDTO,
 )
+from app.config.swagger import setup_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +30,11 @@ app = FastAPI(
     title="AI News Controller"
 )
 
+# Swagger 설정
+setup_swagger(app)
+
+security = HTTPBearer()
+
 news_router = APIRouter(prefix="/api/news-summary", tags=["news"])
 
 # 작업 상태를 저장할 딕셔너리
@@ -36,9 +43,9 @@ tasks = {}
 news_crawling_service = NewsCrawlingService()
 news_summary_service = NewsSummaryService()
 
-
 @news_router.get("/", response_model=ApiResponseDTO)
 async def summarize(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     keyword: str = Query(...),
     press: List[PressName] = Query(
         default=["hk"],
@@ -107,6 +114,5 @@ async def summarize(
         return ApiResponseDTO(
             isSuccess=False, code="COMMON500", message=f"처리 중 오류 발생: {str(e)}"
         )
-
 
 app.include_router(news_router)
