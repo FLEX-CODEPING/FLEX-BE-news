@@ -5,7 +5,7 @@ def custom_openapi(app: FastAPI):
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = get_openapi(
-        title="AI News Controller",
+        title="FLEX 뉴스 요약 API",
         version="1.0",
         routes=app.routes,
     )
@@ -14,6 +14,8 @@ def custom_openapi(app: FastAPI):
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
+            "in": "header",
+            "name": "Authorization"
         }
     }
     openapi_schema["security"] = [{"bearerAuth": []}]
