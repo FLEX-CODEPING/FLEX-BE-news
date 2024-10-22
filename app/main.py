@@ -1,5 +1,6 @@
 import logging
-from fastapi import FastAPI, APIRouter, Query
+from fastapi import FastAPI, APIRouter, Query, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List
 from datetime import datetime
 from app.services.news_crawling_service import NewsCrawlingService
@@ -11,6 +12,7 @@ from app.models.dtos import (
     NewsArticleSourceDTO,
     SummaryItemDTO,
 )
+from app.config.swagger_config import setup_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,17 +23,38 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(news_router = APIRouter(docs_url="/api/news-service/swagger-ui.html",
-                                          openapi_url="/api/news-service/openapi.json", title="AI News Controller")
+# FastAPI 인스턴스 생성
+app = FastAPI(
+    docs_url="/api/news-service/swagger-ui.html",
+    openapi_url="/api/news-service/openapi.json",
+    title="AI News Controller"
+)
+
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://do-flex.co.kr:3000",
+    "http://dev.do-flex.co.kr:8080"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+setup_swagger(app)
+
+security = HTTPBearer()
 
 news_router = APIRouter(prefix="/api/news-summary", tags=["news"])
 
-# 작업 상태를 저장할 딕셔너리
-tasks = {}
-
 news_crawling_service = NewsCrawlingService()
 news_summary_service = NewsSummaryService()
-
 
 @news_router.get("/", response_model=ApiResponseDTO)
 async def summarize(
@@ -103,6 +126,5 @@ async def summarize(
         return ApiResponseDTO(
             isSuccess=False, code="COMMON500", message=f"처리 중 오류 발생: {str(e)}"
         )
-
 
 app.include_router(news_router)
