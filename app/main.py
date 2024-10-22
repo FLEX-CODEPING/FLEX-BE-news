@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, APIRouter, Query, Depends
+from fastapi import FastAPI, APIRouter, Query, Depends, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List
 from datetime import datetime
@@ -12,7 +12,7 @@ from app.models.dtos import (
     NewsArticleSourceDTO,
     SummaryItemDTO,
 )
-from app.config.swagger import setup_swagger
+from app.config.swagger_config import setup_swagger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,22 +30,34 @@ app = FastAPI(
     title="AI News Controller"
 )
 
-# Swagger 설정
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://do-flex.co.kr:3000",
+    "http://dev.do-flex.co.kr:8080"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 setup_swagger(app)
 
 security = HTTPBearer()
 
 news_router = APIRouter(prefix="/api/news-summary", tags=["news"])
 
-# 작업 상태를 저장할 딕셔너리
-tasks = {}
-
 news_crawling_service = NewsCrawlingService()
 news_summary_service = NewsSummaryService()
 
 @news_router.get("/", response_model=ApiResponseDTO)
 async def summarize(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     keyword: str = Query(...),
     press: List[PressName] = Query(
         default=["hk"],
