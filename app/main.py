@@ -21,8 +21,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(news_router = APIRouter(docs_url="/api/news-service/swagger-ui.html",
-                                          openapi_url="/api/news-service/openapi.json", title="AI News Controller")
+# FastAPI 인스턴스 생성
+app = FastAPI(
+    docs_url="/api/news-service/swagger-ui.html",
+    openapi_url="/api/news-service/openapi.json",
+    title="AI News Controller"
+)
 
 news_router = APIRouter(prefix="/api/news-summary", tags=["news"])
 
