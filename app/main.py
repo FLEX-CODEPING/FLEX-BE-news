@@ -21,9 +21,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="News Summarizer")
+app = FastAPI(news_router = APIRouter(docs_url="/api/news-service/swagger-ui.html",
+                                          openapi_url="/api/news-service/openapi.json", title="AI News Controller")
 
-news_router = APIRouter(prefix="/api/news", tags=["news"])
+news_router = APIRouter(prefix="/api/news-summary", tags=["news"])
 
 # 작업 상태를 저장할 딕셔너리
 tasks = {}
@@ -32,7 +33,7 @@ news_crawling_service = NewsCrawlingService()
 news_summary_service = NewsSummaryService()
 
 
-@news_router.get("/summarize", response_model=ApiResponseDTO)
+@news_router.get("/", response_model=ApiResponseDTO)
 async def summarize(
     keyword: str = Query(...),
     press: List[PressName] = Query(
