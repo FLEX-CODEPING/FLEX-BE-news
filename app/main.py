@@ -102,4 +102,45 @@ async def summarize(
             isSuccess=False, code="COMMON500", message=f"처리 중 오류 발생: {str(e)}"
         )
 
+
+@news_router.get("/todaynews", response_model=ApiResponseDTO)
+async def today_news():
+    """
+    메인 페이지에 띄울 오늘 뉴스를 목록으로 띄웁니다.
+    """
+
+    try:
+        keywords = ["국내주식", "해외주식", "환율", "크립토"]
+        news_articles = []
+        for request in [
+            SummaryRequestDTO(keyword=keyword, press=["hk", "mk", "sed"])
+            for keyword in keywords
+        ]:
+            # get_news_articles를 호출하여 반환한 값을 NewsArticleSourceDTO로
+            news_articles.append(await news_service.get_news_articles(request))
+
+        news_articles = [
+            news_service.convert_news_articles(news_article)
+            for news_article in news_articles
+        ]
+
+        final_news_articles = [
+            article for news_article in news_articles for article in news_article
+        ]
+
+        return ApiResponseDTO(
+            isSuccess=True,
+            code="COMMON200",
+            message="성공",
+            result={"sources": final_news_articles},
+        )
+    except Exception as e:
+        logging.error(f"Error occurred while processing task: {str(e)}")
+        return ApiResponseDTO(
+            isSuccess=False,
+            code="COMMON500",
+            message=f"오늘의 뉴스 불러오기 중 오류 발생: {str(e)}",
+        )
+
+
 app.include_router(news_router)
