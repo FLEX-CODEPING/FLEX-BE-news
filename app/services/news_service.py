@@ -8,9 +8,12 @@ import re
 logger = logging.getLogger(__name__)
 
 
-class NewsSummaryService:
+class NewsService:
     def __init__(self):
         self.individual_summarizer = IndividualSummarizer()
+
+    def get_news_articles(self, keyword: str) -> List[NewsArticleDTO]:
+        pass
 
     async def summarize_news(
         self, news_articles: List[NewsArticleDTO], keyword: str
