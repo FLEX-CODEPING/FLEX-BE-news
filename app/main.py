@@ -64,9 +64,9 @@ async def summarize(
     period: int = Query(default=1, description="기간(일)"),
 ):
     """
-    주어진 키워드와 언론사에 대한 뉴스를 크롤링하고 요약합니다.
+    주어진 키워드와 언론사에 대한 뉴스를 크롤링하고 요약합니다. "종합" 키워드는 데이터가 너무 많아 1일치만 불러옵니다.
 
-    - keyword: 검색할 키워드
+    - keyword: 검색할 키워드, 종합 키워드는 "종합"으로 입력
     - press: 검색할 언론사 코드 목록 (hk: 한국경제, mk: 매일경제, sed: 서울경제), 여러 언론사를 선택할 경우 쿼리 스트링 예)press=hk&press=mk
     - period: 기간(일) (default: 1)
     """

@@ -14,7 +14,9 @@ class NewsDataManager:
     def __init__(self):
         self.engine = get_database_connection()
 
-    def get_query_and_params(self, request: SummaryRequestDTO) -> tuple:
+    def get_query_and_params(
+        self, request: SummaryRequestDTO, is_combined: bool = False
+    ) -> tuple:
         """쿼리와 파라미터를 생성합니다.
 
         period가 7일인 경우 전체 데이터를 조회하고,
@@ -22,6 +24,7 @@ class NewsDataManager:
 
         Args:
             request: 요청 DTO (키워드, 언론사, 기간 포함)
+            is_combined: 종합 키워드 조회 여부 (기본값: False)
 
         Returns:
             tuple[str, tuple]: SQL 쿼리문, 파라미터, 기준 시각
@@ -89,15 +92,26 @@ class NewsDataManager:
                     AND press IN ({placeholders})
                 )
             """
-            query = (
-                base_query
-                + f"""
-                SELECT url, title, content, published_date, press, keyword
-                FROM RankedNews
-                WHERE row_num <= {articles_per_press}
-                ORDER BY published_date DESC
-            """
-            )
+            if is_combined:  # 종합 키워드 조회
+                query = (
+                    base_query
+                    + """
+                    SELECT url, title, content, published_date, press, keyword
+                    FROM RankedNews
+                    WHERE row_num = 1
+                    ORDER BY published_date DESC
+                """
+                )
+            else:
+                query = (
+                    base_query
+                    + f"""
+                    SELECT url, title, content, published_date, press, keyword
+                    FROM RankedNews
+                    WHERE row_num <= {articles_per_press}
+                    ORDER BY published_date DESC
+                """
+                )
 
             params = (
                 target_date,
@@ -109,12 +123,13 @@ class NewsDataManager:
         return query, params, target_date
 
     def retrieve_news_articles(
-        self, request: SummaryRequestDTO
+        self, request: SummaryRequestDTO, is_combined: bool = False
     ) -> List[NewsArticleDTO]:
         """DB에서 뉴스 기사를 조회합니다.
 
         Args:
             request: 요청 DTO (키워드, 언론사, 기간 포함)
+            is_combined: 종합 키워드 조회 여부 (기본값: False)
 
         Returns:
             List[NewsArticleDTO]: 뉴스 기사 목록
@@ -123,7 +138,12 @@ class NewsDataManager:
             Exception: DB 조회 중 오류 발생 시
         """
         try:
-            query, params, target_date = self.get_query_and_params(request)
+            if is_combined:
+                query, params, target_date = self.get_query_and_params(
+                    request, is_combined=True
+                )
+            else:
+                query, params, target_date = self.get_query_and_params(request)
 
             logger.info(f"request: {request}")
 

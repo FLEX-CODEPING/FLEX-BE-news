@@ -34,7 +34,19 @@ class NewsService:
             List[NewsArticleDTO]: 뉴스 기사 리스트
         """
         try:
-            articles = self.news_data_manager.retrieve_news_articles(request)
+            if request.keyword == "종합":
+                all_articles = []
+                for keyword in settings.NEWS_KEYWORD:
+                    modified_dto = SummaryRequestDTO(
+                        keyword=keyword, press=request.press, period=request.period
+                    )
+                    articles = await self.news_data_manager.retrieve_news_articles(
+                        modified_dto, is_combined=True
+                    )
+                    all_articles.extend(articles)
+                return all_articles
+            else:
+                articles = self.news_data_manager.retrieve_news_articles(request)
             if not articles:
                 raise SummaryError(
                     "저장된 뉴스 기사가 없습니다.",
