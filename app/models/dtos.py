@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Literal, Optional, Union
 from datetime import datetime
 from .enums import PressName
 
@@ -12,12 +12,11 @@ class PressDTO(BaseModel):
 
 class NewsArticleDTO(BaseModel):
     title: str
-    source: str
     published_date: datetime
-    published_time: datetime
     url: str
     content: str
-    keywords: str
+    keyword: str
+    press: str
 
 
 class NewsArticleSourceDTO(BaseModel):
@@ -25,12 +24,14 @@ class NewsArticleSourceDTO(BaseModel):
     title: str
     content: str
     url: str
+    press: str
 
 
 class SummaryRequestDTO(BaseModel):
+    type: Literal["summary"] = "summary"
     keyword: str
     press: List[PressName]
-    period: int
+    period: int = 1
 
 
 class SummaryItemDTO(BaseModel):
@@ -41,12 +42,15 @@ class SummaryItemDTO(BaseModel):
 class SummaryResponseDTO(BaseModel):
     summaries: Optional[List[SummaryItemDTO]] = None
     sources: Optional[List[NewsArticleSourceDTO]] = None
-    status: Optional[str] = None
-    task_id: Optional[str] = None
+
+
+class NewsListResponseDTO(BaseModel):
+    type: Literal["news_list"] = "news_list"
+    sources: List[NewsArticleSourceDTO]
 
 
 class ApiResponseDTO(BaseModel):
     isSuccess: bool = True
     code: str = "COMMON200"
     message: str = "성공"
-    result: Optional[SummaryResponseDTO] = None
+    result: Optional[Union[SummaryResponseDTO, List[NewsListResponseDTO]]] = None

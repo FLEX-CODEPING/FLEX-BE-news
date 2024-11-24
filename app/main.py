@@ -7,8 +7,8 @@ from app.models.enums import PressName
 from app.models.dtos import (
     SummaryRequestDTO,
     ApiResponseDTO,
-    NewsArticleSourceDTO,
     SummaryItemDTO,
+    SummaryResponseDTO,
 )
 from app.config.swagger_config import setup_swagger
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     docs_url="/api/news-service/swagger-ui.html",
     openapi_url="/api/news-service/openapi.json",
-    title="AI News Controller"
+    title="AI News Controller",
 )
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +34,7 @@ origins = [
     "http://localhost:8080",
     "http://localhost:3000",
     "http://do-flex.co.kr:3000",
-    "http://dev.do-flex.co.kr:8080"
+    "http://dev.do-flex.co.kr:8080",
 ]
 
 app.add_middleware(
@@ -84,28 +84,7 @@ async def summarize(
             for item in summary_items
         ]
 
-        articles_dto = []
-        for row in news_articles:
-            try:
-                # row의 published_time과 published_date를 합쳐 NewsArticleSourceDTO로 변환
-                date_combined = datetime.combine(
-                    row.published_date.date(), row.published_time.time()
-                )
-                articles_dto.append(
-                    NewsArticleSourceDTO(
-                        date=date_combined,
-                        title=row.title,
-                        # content를 100자로 제한
-                        content=row.content[:100] + "..."
-                        if len(row.content) > 50
-                        else row.content,
-                        url=row.url,
-                    )
-                )
-            except Exception as e:
-                logger.error(
-                    f"행을 NewsArticleSourceDTO로 변환 중 오류: {str(e)}", exc_info=True
-                )
+        articles_dto = news_service.convert_news_articles(news_articles)
 
         logger.info(f"summaries: {summary_text}")
         logger.info(f"articles_dto: {articles_dto}")
@@ -114,7 +93,7 @@ async def summarize(
             isSuccess=True,
             code="COMMON200",
             message="성공",
-            result={"summaries": summary_text, "sources": articles_dto},
+            result=SummaryResponseDTO(summaries=summary_text, sources=articles_dto),
         )
 
     except Exception as e:
