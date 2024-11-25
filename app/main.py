@@ -1,16 +1,14 @@
 import logging
-from fastapi import FastAPI, APIRouter, Query, Depends, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, APIRouter, Query
+from fastapi.security import HTTPBearer
 from typing import List
-from datetime import datetime
-from app.services.news_crawling_service import NewsCrawlingService
-from app.services.news_summary_service import NewsSummaryService
+from app.services.news_service import NewsService
 from app.models.enums import PressName
 from app.models.dtos import (
     SummaryRequestDTO,
     ApiResponseDTO,
-    NewsArticleSourceDTO,
     SummaryItemDTO,
+    SummaryResponseDTO,
 )
 from app.config.swagger_config import setup_swagger
 
@@ -27,7 +25,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     docs_url="/api/news-service/swagger-ui.html",
     openapi_url="/api/news-service/openapi.json",
-    title="AI News Controller"
+    title="AI News Controller",
 )
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +34,7 @@ origins = [
     "http://localhost:8080",
     "http://localhost:3000",
     "http://do-flex.co.kr:3000",
-    "http://dev.do-flex.co.kr:8080"
+    "http://dev.do-flex.co.kr:8080",
 ]
 
 app.add_middleware(
@@ -53,8 +51,8 @@ security = HTTPBearer()
 
 news_router = APIRouter(prefix="/api/news-summary", tags=["news"])
 
-news_crawling_service = NewsCrawlingService()
-news_summary_service = NewsSummaryService()
+news_service = NewsService()
+
 
 @news_router.get("/", response_model=ApiResponseDTO)
 async def summarize(
@@ -66,20 +64,18 @@ async def summarize(
     period: int = Query(default=1, description="기간(일)"),
 ):
     """
-    <h3><strong>clova summary는 하루 50회 제한이 있습니다. chatgpt는 크레딧이 5달러이므로 유념해주세요.</strong></h3> 주어진 키워드와 언론사에 대한 뉴스를 크롤링하고 요약합니다.
+    주어진 키워드와 언론사에 대한 뉴스를 크롤링하고 요약합니다. "종합" 키워드는 데이터가 너무 많아 1일치만 불러옵니다.
 
-    - keyword: 검색할 키워드
+    - keyword: 검색할 키워드, 종합 키워드는 "종합"으로 입력
     - press: 검색할 언론사 코드 목록 (hk: 한국경제, mk: 매일경제, sed: 서울경제), 여러 언론사를 선택할 경우 쿼리 스트링 예)press=hk&press=mk
-    - period: 검색할 기간 (일)
-
-    결과로 작업 ID가 반환되며, 이를 통해 작업 상태와 결과를 조회할 수 있습니다.
+    - period: 기간(일) (default: 1)
     """
 
     try:
         request_dto = SummaryRequestDTO(keyword=keyword, press=press, period=period)
 
-        news_articles = await news_crawling_service.crawl_news(request_dto)
-        summary_items = await news_summary_service.summarize_news(
+        news_articles = await news_service.get_news_articles(request_dto)
+        summary_items = await news_service.summarize_news(
             news_articles, request_dto.keyword
         )
 
@@ -88,28 +84,7 @@ async def summarize(
             for item in summary_items
         ]
 
-        articles_dto = []
-        for row in news_articles:
-            try:
-                # row의 published_time과 published_date를 합쳐 NewsArticleSourceDTO로 변환
-                date_combined = datetime.combine(
-                    row.published_date.date(), row.published_time.time()
-                )
-                articles_dto.append(
-                    NewsArticleSourceDTO(
-                        date=date_combined,
-                        title=row.title,
-                        # content를 100자로 제한
-                        content=row.content[:100] + "..."
-                        if len(row.content) > 50
-                        else row.content,
-                        url=row.url,
-                    )
-                )
-            except Exception as e:
-                logger.error(
-                    f"행을 NewsArticleSourceDTO로 변환 중 오류: {str(e)}", exc_info=True
-                )
+        articles_dto = news_service.convert_news_articles(news_articles)
 
         logger.info(f"summaries: {summary_text}")
         logger.info(f"articles_dto: {articles_dto}")
@@ -118,7 +93,7 @@ async def summarize(
             isSuccess=True,
             code="COMMON200",
             message="성공",
-            result={"summaries": summary_text, "sources": articles_dto},
+            result=SummaryResponseDTO(summaries=summary_text, sources=articles_dto),
         )
 
     except Exception as e:
@@ -126,5 +101,46 @@ async def summarize(
         return ApiResponseDTO(
             isSuccess=False, code="COMMON500", message=f"처리 중 오류 발생: {str(e)}"
         )
+
+
+@news_router.get("/todaynews", response_model=ApiResponseDTO)
+async def today_news():
+    """
+    메인 페이지에 띄울 오늘 뉴스를 목록으로 띄웁니다.
+    """
+
+    try:
+        keywords = ["국내주식", "해외주식", "환율", "크립토"]
+        news_articles = []
+        for request in [
+            SummaryRequestDTO(keyword=keyword, press=["hk", "mk", "sed"])
+            for keyword in keywords
+        ]:
+            # get_news_articles를 호출하여 반환한 값을 NewsArticleSourceDTO로
+            news_articles.append(await news_service.get_news_articles(request))
+
+        news_articles = [
+            news_service.convert_news_articles(news_article)
+            for news_article in news_articles
+        ]
+
+        final_news_articles = [
+            article for news_article in news_articles for article in news_article
+        ]
+
+        return ApiResponseDTO(
+            isSuccess=True,
+            code="COMMON200",
+            message="성공",
+            result={"sources": final_news_articles},
+        )
+    except Exception as e:
+        logging.error(f"Error occurred while processing task: {str(e)}")
+        return ApiResponseDTO(
+            isSuccess=False,
+            code="COMMON500",
+            message=f"오늘의 뉴스 불러오기 중 오류 발생: {str(e)}",
+        )
+
 
 app.include_router(news_router)

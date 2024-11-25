@@ -1,6 +1,6 @@
 import openai
 from typing import List
-from app.config.env import settings
+from app.config.settings import settings
 from app.core.exceptions import SummaryError
 import logging
 
@@ -11,7 +11,7 @@ class AccumulatedSummarizer:
     def __init__(self):
         self.openai_api_key = settings.openai_api_key
 
-    def accumulated_summary(self, keyword: str, summaries: List[str]) -> str:
+    def accumulated_summary(self, keyword: str, summaries: List[str]):
         try:
             openai.api_key = self.openai_api_key
 
