@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI, APIRouter, Query
 from fastapi.security import HTTPBearer
 from typing import List
+from app.config.eureka_client import eureka_lifespan
 from app.services.news_service import NewsService
 from app.models.enums import PressName
 from app.models.dtos import (
@@ -26,6 +27,7 @@ app = FastAPI(
     docs_url="/api/news-service/swagger-ui.html",
     openapi_url="/api/news-service/openapi.json",
     title="AI News Controller",
+    lifespan=eureka_lifespan,
 )
 
 from fastapi.middleware.cors import CORSMiddleware
