@@ -3,6 +3,12 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Eureka settings
+    EUREKA_URL: str
+    APP_NAME: str
+    INSTANCE_HOST: str
+    INSTANCE_PORT: str
+    
     openai_api_key: str
 
     # Database settings
