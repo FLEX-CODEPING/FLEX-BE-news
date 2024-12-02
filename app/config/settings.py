@@ -7,8 +7,7 @@ class Settings(BaseSettings):
     EUREKA_URL: str
     APP_NAME: str
     INSTANCE_HOST: str
-    INSTANCE_PORT: str
-    
+    INSTANCE_PORT: int
     openai_api_key: str
 
     # Database settings
