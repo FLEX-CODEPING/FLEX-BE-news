@@ -147,7 +147,9 @@ class NewsDataManager:
 
             logger.info(f"request: {request}")
 
-            df = pd.read_sql_query(query, self.engine, params=params)
+            df = pd.read_sql_query(
+                query, self.engine, params=params, parse_dates=["published_date"]
+            )
 
             if df.empty:
                 logger.warning(
@@ -155,12 +157,7 @@ class NewsDataManager:
                 )
                 return []
 
-            articles = []
-
-            for row in df.to_dict("records"):
-                # row의 published_date를 datetime 객체로 변환
-                row["published_date"] = row["published_date"].to_pydatetime()
-                articles.append(NewsArticleDTO(**row))
+            articles = [NewsArticleDTO(**row) for row in df.to_dict("records")]
 
             logger.info(
                 f"Retrieved {len(articles)} articles for keyword: {request.keyword}"
