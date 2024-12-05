@@ -40,7 +40,7 @@ class NewsService:
                     modified_dto = SummaryRequestDTO(
                         keyword=keyword, press=request.press, period=request.period
                     )
-                    articles = await self.news_data_manager.retrieve_news_articles(
+                    articles = self.news_data_manager.retrieve_news_articles(
                         modified_dto, is_combined=True
                     )
                     all_articles.extend(articles)
