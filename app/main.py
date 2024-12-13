@@ -1,15 +1,15 @@
 import logging
-from fastapi import FastAPI, APIRouter, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 from typing import List
 from app.config.eureka_client import eureka_lifespan
 from app.services.news_service import NewsService
+from app.config.settings import settings
 from app.models.enums import PressName
 from app.models.dtos import (
     SummaryRequestDTO,
     ApiResponseDTO,
-    SummaryItemDTO,
-    SummaryResponseDTO,
 )
 from app.config.swagger_config import setup_swagger
 
@@ -18,6 +18,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     filename="app.log",
     encoding="utf-8",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 logger = logging.getLogger(__name__)
@@ -30,18 +31,20 @@ app = FastAPI(
     lifespan=eureka_lifespan,
 )
 
-from fastapi.middleware.cors import CORSMiddleware
 
-origins = [
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://do-flex.co.kr:3000",
-    "http://dev.do-flex.co.kr:8080",
-]
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"isSuccess": False, "code": "COMMON500", "message": str(exc.detail)},
+    )
+
+
+from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,59 +79,25 @@ async def summarize(
     try:
         request_dto = SummaryRequestDTO(keyword=keyword, press=press, period=period)
 
-        news_articles = await news_service.get_news_articles(request_dto)
-        summary_items = await news_service.summarize_news(
-            news_articles, request_dto.keyword
-        )
-
-        summary_text = [
-            SummaryItemDTO(title=item.title, content=item.content)
-            for item in summary_items
-        ]
-
-        articles_dto = news_service.convert_news_articles(news_articles)
-
-        logger.info(f"summaries: {summary_text}")
-        logger.info(f"articles_dto: {articles_dto}")
+        news_articles = await news_service.summarized_news(request_dto)
 
         return ApiResponseDTO(
-            isSuccess=True,
-            code="COMMON200",
-            message="성공",
-            result=SummaryResponseDTO(summaries=summary_text, sources=articles_dto),
+            isSuccess=True, code="COMMON200", message="성공", result=news_articles
         )
 
     except Exception as e:
         logging.error(f"Error occurred while processing task: {str(e)}")
-        return ApiResponseDTO(
-            isSuccess=False, code="COMMON500", message=f"처리 중 오류 발생: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"뉴스 요약 중 오류 발생: {str(e)}")
 
 
 @news_router.get("/todaynews", response_model=ApiResponseDTO)
 async def today_news():
     """
-    메인 페이지에 띄울 오늘 뉴스를 목록으로 띄웁니다.
+    메인 페이지에 띄울 뉴스 헤드라인을 목록으로 띄웁니다.
     """
 
     try:
-        keywords = ["국내주식", "해외주식", "환율", "크립토"]
-        news_articles = []
-        for request in [
-            SummaryRequestDTO(keyword=keyword, press=["hk", "mk", "sed"])
-            for keyword in keywords
-        ]:
-            # get_news_articles를 호출하여 반환한 값을 NewsArticleSourceDTO로
-            news_articles.append(await news_service.get_news_articles(request))
-
-        news_articles = [
-            news_service.convert_news_articles(news_article)
-            for news_article in news_articles
-        ]
-
-        final_news_articles = [
-            article for news_article in news_articles for article in news_article
-        ]
+        final_news_articles = await news_service.today_news
 
         return ApiResponseDTO(
             isSuccess=True,
@@ -138,10 +107,9 @@ async def today_news():
         )
     except Exception as e:
         logging.error(f"Error occurred while processing task: {str(e)}")
-        return ApiResponseDTO(
-            isSuccess=False,
-            code="COMMON500",
-            message=f"오늘의 뉴스 불러오기 중 오류 발생: {str(e)}",
+        raise HTTPException(
+            status_code=500,
+            detail=f"뉴스 헤드라인 불러오기 중 오류 발생: {str(e)}",
         )
 
 

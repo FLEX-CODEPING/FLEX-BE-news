@@ -1,21 +1,12 @@
-import os
-from dotenv import load_dotenv
+import json
 from sqlalchemy import create_engine
-
-# .env 파일 로드
-load_dotenv()
-
-# 환경 변수 가져오기
-DATABASE_USER = os.getenv("DATABASE_USERNAME")
-DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD")
-DATABASE_HOST = os.getenv("DATABASE_HOST")
-DATABASE_PORT = os.getenv("DATABASE_PORT")
-DATABASE_SCHEMA = os.getenv("DATABASE_SCHEMA")
+from app.config.settings import settings
+from redis import Redis
 
 
 def get_database_connection():
     try:
-        connection_info = f"mysql+pymysql://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_SCHEMA}"
+        connection_info = f"mysql+pymysql://{settings.DATABASE_USERNAME}:{settings.DATABASE_PASSWORD}@{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE_SCHEMA}"
         if not connection_info:
             raise ValueError("데이터 베이스 연결정보가 없습니다.")
 
@@ -25,3 +16,28 @@ def get_database_connection():
     except Exception as e:
         print(f"데이터베이스 연결 오류: {e}")
         return None
+
+
+def get_redis_connection():
+    try:
+        redis_client = Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            password=settings.REDIS_PASSWORD,
+            db=settings.REDIS_DB,
+            decode_responses=True,
+        )
+        redis_client.ping()
+        print("Redis에 성공적으로 연결되었습니다.")
+        return redis_client
+    except Exception as e:
+        print(f"Redis 연결 오류: {str(e)}")
+        return None
+
+
+def get_cached_summary(key: str) -> dict | None:
+    redis_client = get_redis_connection()
+    if not redis_client:
+        return None
+    result = redis_client.get(key)
+    return json.loads(result) if result else None

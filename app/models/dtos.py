@@ -17,6 +17,7 @@ class NewsArticleDTO(BaseModel):
     content: str
     keyword: str
     press: str
+    summary: Optional[str] = None
 
 
 class NewsArticleSourceDTO(BaseModel):
