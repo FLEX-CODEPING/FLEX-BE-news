@@ -1,0 +1,32 @@
+version: 1
+disable_existing_loggers: False
+formatters:
+  default:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  color:
+    format: "%(asctime)s - %(name)s - %(log_color)s%(levelname)s%(reset)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+    class: colorlog.ColoredFormatter
+    log_colors:
+      DEBUG:    "bold_blue"
+      INFO:     "bold_green"
+      WARNING:  "bold_yellow"
+      ERROR:    "bold_red"
+      CRITICAL: "bold_purple"
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: color
+loggers:
+  uvicorn:
+    handlers: [console]
+    level: INFO
+    propagate: False
+  app:
+    handlers: [console]
+    level: INFO
+    propagate: False
+root:
+  handlers: [console]
+  level: INFO

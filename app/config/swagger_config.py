@@ -42,6 +42,22 @@ def custom_openapi(app: FastAPI):
                 ],
             },
         }
+        paths["/api/news-summary/"]["get"]["responses"].update(
+            {
+                "500": {
+                    "description": "서버 오류",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "isSuccess": False,
+                                "code": "COMMON500",
+                                "message": "서버 오류",
+                            }
+                        }
+                    },
+                }
+            }
+        )
     if "/api/news-summary/todaynews" in paths:
         paths["/api/news-summary/todaynews"]["get"]["responses"]["200"]["content"][
             "application/json"
@@ -60,6 +76,22 @@ def custom_openapi(app: FastAPI):
                 ]
             },
         }
+        paths["/api/news-summary/todaynews"]["get"]["responses"].update(
+            {
+                "500": {
+                    "description": "서버 오류",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "isSuccess": False,
+                                "code": "COMMON500",
+                                "message": "서버 오류",
+                            }
+                        }
+                    },
+                }
+            }
+        )
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

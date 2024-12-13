@@ -1,11 +1,16 @@
+import json
 from typing import List
 from app.config.settings import settings
-from app.models.dtos import NewsArticleDTO, SummaryRequestDTO, NewsArticleSourceDTO
-import os
+from app.models.dtos import (
+    NewsArticleDTO,
+    SummaryRequestDTO,
+    NewsArticleSourceDTO,
+    SummaryResponseDTO,
+)
 import pandas as pd
 from datetime import datetime, timedelta
 import logging
-from app.core.database_connection import get_database_connection
+from app.core.database_connection import get_database_connection, get_redis_connection
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +18,7 @@ logger = logging.getLogger(__name__)
 class NewsDataManager:
     def __init__(self):
         self.engine = get_database_connection()
+        self.redis_client = get_redis_connection()
 
     def get_query_and_params(
         self, request: SummaryRequestDTO, is_combined: bool = False
@@ -69,7 +75,7 @@ class NewsDataManager:
                     WHERE keyword = %s
                     AND press IN ({placeholders})
                 )
-                SELECT url, title, content, published_date, press, keyword
+                SELECT url, title, content, published_date, press, keyword, summary
                 FROM RankedNews
                 WHERE row_num <= {articles_per_press}
                 ORDER BY published_date DESC
@@ -96,7 +102,7 @@ class NewsDataManager:
                 query = (
                     base_query
                     + """
-                    SELECT url, title, content, published_date, press, keyword
+                    SELECT url, title, content, published_date, press, keyword, summary
                     FROM RankedNews
                     WHERE row_num = 1
                     ORDER BY published_date DESC
@@ -106,7 +112,7 @@ class NewsDataManager:
                 query = (
                     base_query
                     + f"""
-                    SELECT url, title, content, published_date, press, keyword
+                    SELECT url, title, content, published_date, press, keyword, summary
                     FROM RankedNews
                     WHERE row_num <= {articles_per_press}
                     ORDER BY published_date DESC
@@ -193,12 +199,13 @@ class NewsDataManager:
                     NewsArticleSourceDTO(
                         date=row.published_date,
                         title=row.title,
-                        # content를 100자로 제한
-                        content=(
-                            row.content[:100] + "..."
-                            if len(row.content) > 50
-                            else row.content
-                        ),
+                        # # content를 100자로 제한
+                        # content=(
+                        #     row.content[:100] + "..."
+                        #     if len(row.content) > 50
+                        #     else row.content
+                        # ),
+                        content=row.content,
                         url=row.url,
                         press=row.press,
                     )
@@ -209,3 +216,94 @@ class NewsDataManager:
                 )
 
         return articles_dto
+
+    def caching_results(
+        self, keyword: str, press: List[str], period: str, response: SummaryResponseDTO
+    ):
+        """뉴스 기사를 Redis에 캐싱합니다.
+
+        Args:
+            keyword (str): 키워드
+            press (List[str]): 언론사
+            period (str): 기간
+            response (SummaryResponseDTO): 요약 결과 DTO
+
+        Raises:
+            Exception: 캐시 중 오류 발생 시
+        """
+        try:
+            now = datetime.now()
+
+            # 오늘 06:15으로 기준 시각 설정
+            today_base = now.replace(hour=6, minute=15, second=0, microsecond=0)
+
+            # 현재가 오늘 06:15 이전이면 어제 06:15을 기준으로 날짜 범위를 설정
+            if now < today_base:
+                target_date = today_base - timedelta(days=1)
+            else:
+                target_date = today_base
+
+            if self.redis_client and response.summaries:
+                key = f"news:summary:{target_date.strftime('%Y%m%d')}:{keyword}:{press}:{period}"
+
+                response_dict = self.convert_timestamps(obj=response.model_dump())
+
+                self.redis_client.setex(key, 60 * 60 * 24, json.dumps(response_dict))
+                logger.info(f"캐시된 결과: {key}")
+        except Exception as e:
+            logger.error(f"캐시 중 오류 발생: {str(e)}")
+            raise
+
+    def convert_timestamps(self, obj):
+        """Timestamp 객체를 문자열로 변환합니다.
+
+        Args:
+            obj: 변환할 객체
+
+        Returns:
+            str: 변환된 문자열
+        """
+        if isinstance(obj, dict):
+            return {key: self.convert_timestamps(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self.convert_timestamps(item) for item in obj]
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        return obj
+
+    def get_cached_results(
+        self, keyword: str, press: List[str], period: str
+    ) -> SummaryResponseDTO | None:
+        """Redis에서 캐싱된 뉴스 기사를 가져옵니다.
+
+        Args:
+            keyword (str): 키워드
+            press (List[str]): 언론사
+            period (str): 기간
+
+        Returns:
+            SummaryResponseDTO: 캐싱된 결과 DTO
+        """
+        try:
+            now = datetime.now()
+
+            # 오늘 06:15으로 기준 시각 설정
+            today_base = now.replace(hour=6, minute=15, second=0, microsecond=0)
+
+            # 현재가 오늘 06:15 이전이면 어제 06:15을 기준으로 날짜 범위를 설정
+            if now < today_base:
+                target_date = today_base - timedelta(days=1)
+            else:
+                target_date = today_base
+
+            key = f"news:summary:{target_date.strftime('%Y%m%d')}:{keyword}:{press}:{period}"
+            cached_result = self.redis_client.get(key)
+            if cached_result:
+                return SummaryResponseDTO(**json.loads(cached_result))
+            else:
+                return None
+
+        except Exception as e:
+            logger.error(f"캐시된 결과 가져오는 중 오류 발생: {str(e)}")
+
+        return SummaryResponseDTO()

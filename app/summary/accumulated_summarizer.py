@@ -2,6 +2,7 @@ import openai
 from typing import List
 from app.config.settings import settings
 from app.core.exceptions import SummaryError
+from app.models.dtos import NewsArticleDTO
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,13 +10,16 @@ logger = logging.getLogger(__name__)
 
 class AccumulatedSummarizer:
     def __init__(self):
-        self.openai_api_key = settings.openai_api_key
+        self.openai_api_key = settings.OPENAI_API_KEY
 
-    def accumulated_summary(self, keyword: str, summaries: List[str]):
+    async def accumulated_summary(
+        self, keyword: str, requests: List[NewsArticleDTO]
+    ) -> str:
         try:
             openai.api_key = self.openai_api_key
 
-            summaries = [summary for summary in summaries if summary is not None]
+            raw_summaries = [request.summary for request in requests]
+            summaries = [summary for summary in raw_summaries if summary is not None]
             summaries_str = "\n".join(summaries)
 
             messages = f"""동일 주제 복수의 기사, 주제: {keyword}
@@ -49,7 +53,7 @@ class AccumulatedSummarizer:
         except openai.APIError as e:
             error_msg = f"OpenAI API 오류: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            return SummaryError(error_msg, details={"keyword": keyword})
+            raise SummaryError(error_msg, details={"keyword": keyword})
         except Exception as e:
             error_msg = f"종합 요약 생성 실패: {str(e)}"
             logger.error(error_msg, exc_info=True)
