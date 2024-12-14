@@ -257,7 +257,7 @@ class NewsService:
                 },
             )
 
-    def headline_news(self) -> List[NewsArticleSourceDTO]:
+    async def headline_news(self) -> List[NewsArticleSourceDTO]:
         """메인 페이지에 띄울 뉴스 헤드라인을 목록으로 띄웁니다.
 
         Returns:
@@ -270,7 +270,7 @@ class NewsService:
                 SummaryRequestDTO(keyword=keyword, press=["hk", "mk", "sed"])
                 for keyword in keywords
             ]:
-                news_articles.append(self.get_news_articles(request))
+                news_articles.append(await self.get_news_articles(request))
 
             news_articles = [
                 self.convert_news_articles(news_article)
