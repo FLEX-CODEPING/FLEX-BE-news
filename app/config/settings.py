@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         "경제",
         "환율",
         "부동산",
-        "지수",
+        "주가지수",
     ]
 
     # News press settings

@@ -97,7 +97,7 @@ async def today_news():
     """
 
     try:
-        final_news_articles = await news_service.today_news
+        final_news_articles = await news_service.headline_news()
 
         return ApiResponseDTO(
             isSuccess=True,
