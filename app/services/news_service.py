@@ -264,7 +264,7 @@ class NewsService:
             List[NewsArticleSourceDTO]: 뉴스 기사 목록
         """
         try:
-            keywords = ["국내주식", "해외주식", "환율", "크립토"]
+            keywords = ["국내주식", "해외주식", "환율"]
             news_articles = []
             for request in [
                 SummaryRequestDTO(keyword=keyword, press=["hk", "mk", "sed"])
